@@ -68,20 +68,19 @@ def createBoW(stemmedTokens):
     return BoW
 
 # Create TF-ID- and LSI model and corpus
-def createTFIDmodelsAndCorppus(BoW):
+def createTFIDmodelsAndCorppus(BoW, dictionary):
     tfidModel = gensim.models.TfidfModel(BoW)
     tfidCorpus = tfidModel[BoW]
     return tfidModel, tfidCorpus
 
 # Creates LSI model and corpus
-def createLSImodelsAndCorppus(tfidCorpus):
+def createLSImodelsAndCorppus(tfidCorpus, dictionary):
     lsiModel = gensim.models.LsiModel(tfidCorpus, id2word=dictionary, num_topics=100)
     lsiCorpus = lsiModel[tfidCorpus]
     return lsiModel, lsiCorpus
 
 def preprocess(txt):
-    mainTxt = removeHeadAndFoot(txt)
-    paragraphs = splitIntoParagraphs(mainTxt)
+    paragraphs = splitIntoParagraphs(txt)
     tokens = tokenize(paragraphs)
     stemmedTokens = stem(tokens)
     dictionary = createDictionary(stemmedTokens)
@@ -90,8 +89,8 @@ def preprocess(txt):
 
 def createModels(stemmedTokens, dictionary):
     BoW = createBoW(stemmedTokens)
-    tfidModel, tfidCorpus = createTFIDmodelsAndCorppus(BoW)
-    lsiModel, lsiCorpus = createTFIDmodelsAndCorppus(tfidCorpus)
+    tfidModel, tfidCorpus = createTFIDmodelsAndCorppus(BoW, dictionary)
+    lsiModel, lsiCorpus = createTFIDmodelsAndCorppus(tfidCorpus, dictionary)
     return BoW, tfidModel, tfidCorpus, lsiModel, lsiCorpus
 
 #Creates similarity models
@@ -102,9 +101,16 @@ def createSimMOdels(tfidCorpus, lsiCorpus):
 
 
 txt = codecs.open("pg3300.txt", "r", "utf-8").read()
+txt = removeHeadAndFoot(txt)
 
 stemmedTokens, dictionary = preprocess(txt)
 BoW, tfidModel, tfidCorpus, lsiModel, lsiCorpus = createModels(stemmedTokens, dictionary)
 TFIDsimModel, LSIsimModel = createSimMOdels(tfidCorpus, lsiCorpus)
 
-print(BoW)
+query = "How taxes influence Economics?"
+stemmedTokensQuery, dictionaryQuery = preprocess(query)
+BoWQuery, tfidModelQuery, tfidCorpusQuery, lsiModelQuery, lsiCorpusQuery = createModels(stemmedTokensQuery, dictionaryQuery)
+
+print(dictionary.get(2826))
+print(lsiCorpusQuery)
+print(BoWQuery)
