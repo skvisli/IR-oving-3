@@ -6,69 +6,105 @@ import os
 import string
 import logging
 
-logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+#logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 random.seed(123)
-txt = codecs.open("pg3300.txt", "r", "utf-8").read()
 
 # Removes header and footer
-sections = txt.split("***")
-mainTxt = sections[2]
-# Splits mainTxt into paragraphs
-paragraphs = mainTxt.split(2 * os.linesep)
+def removeHeadAndFoot(txt):
+    sections = txt.split("***")
+    mainSection = sections[2]
+    return mainSection
+
+def splitIntoParagraphs(txt):
+    # Splits mainTxt into paragraphs
+    paragraphs = txt.split(2 * os.linesep)
+    return paragraphs
 
 # Tokenizes paragraphs
-tokens = []
-for para in paragraphs:
-    if para:  # Removes blank paragraphs
-        for ch in string.punctuation + "\n\r\t":
-            para = para.replace(ch, "")
-        para = para.lower()
-        tokens.append(para.split())
-print("Book tokenized")
+def tokenize(paragraphs):
+    tokens = []
+    for para in paragraphs:
+        if para:  # Removes blank paragraphs
+            for ch in string.punctuation + "\n\r\t":
+                para = para.replace(ch, "")
+            para = para.lower()
+            tokens.append(para.split())
+    print("Book tokenized")
+    return tokens
 
 #Stem tokens
-stemmer = nltk.stem.PorterStemmer()
-stemmedTokens = []
-for i in range(0, len(tokens)):
-    para = []
-    if tokens[i] is not None:
-        for j in range(0, len(tokens[i])):
-            para.append(stemmer.stem(tokens[i][j]))
-    stemmedTokens.append(para)
-print("Finished stemming")
+def stem(tokens):
+    stemmer = nltk.stem.PorterStemmer()
+    stemmedTokens = []
+    for i in range(0, len(tokens)):
+        para = []
+        if tokens[i] is not None:
+            for j in range(0, len(tokens[i])):
+                para.append(stemmer.stem(tokens[i][j]))
+        stemmedTokens.append(para)
+    print("Finished stemming")
+    return stemmedTokens
 
 # Creating dictionary
-dictionary = gensim.corpora.Dictionary()
-dictionary.add_documents(stemmedTokens)
-print("Dictionary created")
+def createDictionary(stemmedTokens):
+    dictionary = gensim.corpora.Dictionary()
+    dictionary.add_documents(stemmedTokens)
+    print("Dictionary created")
+    return dictionary
 
 # Remove stop words
-stopWords = codecs.open("common-english-words.txt", "r", "utf-8").read().split(",")
-stop_ids = [dictionary.token2id[stopword] for stopword in stopWords
-            if stopword in dictionary.token2id]
-dictionary.filter_tokens(stop_ids)
-dictionary.compactify()
-print("Stop words removed")
+def removeStopWords(dictionary):
+    stopWords = codecs.open("common-english-words.txt", "r", "utf-8").read().split(",")
+    stop_ids = [dictionary.token2id[stopword] for stopword in stopWords
+                if stopword in dictionary.token2id]
+    dictionary.filter_tokens(stop_ids)
+    dictionary.compactify()
+    print("Stop words removed")
+    return dictionary
 
 # Creates Bag of Words
-corpus = [dictionary.doc2bow(token) for token in stemmedTokens]
+def createBoW(stemmedTokens):
+    BoW = [dictionary.doc2bow(token) for token in stemmedTokens]
+    return BoW
 
 # Create TF-ID- and LSI model and corpus
-tfidModel = gensim.models.TfidfModel(corpus)
-tfidCorpus = tfidModel[corpus]
+def createTFIDmodelsAndCorppus(BoW):
+    tfidModel = gensim.models.TfidfModel(BoW)
+    tfidCorpus = tfidModel[BoW]
+    return tfidModel, tfidCorpus
 
 # Creates LSI model and corpus
-lsiModel = gensim.models.LsiModel(tfidCorpus, id2word=dictionary, num_topics=100)
-lsiCorpus = lsiModel[tfidCorpus]
+def createLSImodelsAndCorppus(tfidCorpus):
+    lsiModel = gensim.models.LsiModel(tfidCorpus, id2word=dictionary, num_topics=100)
+    lsiCorpus = lsiModel[tfidCorpus]
+    return lsiModel, lsiCorpus
 
-# Query
-# query = "Produced by Colin Muir"
-# vec_bow = dictionary.doc2bow(query.lower().split())
-# vec_lsi = lsi[vec_bow]
-# vec_tfid = tfid[query]
-# print(vec_tfid)
+def preprocess(txt):
+    mainTxt = removeHeadAndFoot(txt)
+    paragraphs = splitIntoParagraphs(mainTxt)
+    tokens = tokenize(paragraphs)
+    stemmedTokens = stem(tokens)
+    dictionary = createDictionary(stemmedTokens)
+    dictionary = removeStopWords(dictionary)
+    return stemmedTokens, dictionary
+
+def createModels(stemmedTokens, dictionary):
+    BoW = createBoW(stemmedTokens)
+    tfidModel, tfidCorpus = createTFIDmodelsAndCorppus(BoW)
+    lsiModel, lsiCorpus = createTFIDmodelsAndCorppus(tfidCorpus)
+    return BoW, tfidModel, tfidCorpus, lsiModel, lsiCorpus
 
 #Creates similarity models
-TFIDsimModel = gensim.similarities.MatrixSimilarity(tfidCorpus)
-LSIsimModel = gensim.similarities.MatrixSimilarity(lsiCorpus)
+def createSimMOdels(tfidCorpus, lsiCorpus):
+    TFIDsimModel = gensim.similarities.MatrixSimilarity(tfidCorpus)
+    LSIsimModel = gensim.similarities.MatrixSimilarity(lsiCorpus)
+    return TFIDsimModel, LSIsimModel
 
+
+txt = codecs.open("pg3300.txt", "r", "utf-8").read()
+
+stemmedTokens, dictionary = preprocess(txt)
+BoW, tfidModel, tfidCorpus, lsiModel, lsiCorpus = createModels(stemmedTokens, dictionary)
+TFIDsimModel, LSIsimModel = createSimMOdels(tfidCorpus, lsiCorpus)
+
+print(BoW)
