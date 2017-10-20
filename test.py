@@ -126,12 +126,31 @@ vec_lsi = lsiModel[vec_bow]
 #for vec in vec_lsi:
 #    print(vec)
 
-index = gensim.similarities.MatrixSimilarity(lsiModel[corpus]) # transform corpus to LSI space and index it
+index = gensim.similarities.MatrixSimilarity(lsiModel[corpus])  # transform corpus to LSI space and index it
 sims = index[vec_lsi]  # perform a similarity query against the corpus
 sims = sorted(enumerate(sims[0]), key=lambda item: -item[1])  # Sorts sim decending on the similarity scores
-print(sims[0])  # print sorted (document number, similarity score) 2-tuples
-print(sims[1])  # print sorted (document number, similarity score) 2-tuples
-print(sims[2])  # print sorted (document number, similarity score) 2-tuples
+"""print(sims[0])  # print sorted (document number, similarity score) 2-tuples
+paragraaa = corpus.__getitem__(sims[0][0])
+for para in paragraaa:
+    print(dictionary.__getitem__(para[0]))
+print(paragraphs[sims[0][0]])
+print(paragraphs[sims[1][0]])
+print(paragraphs[sims[2][0]])
+"""
+
+vec_tfidf = tfidfModel[vec_bow]
+for vec in vec_tfidf:
+    print(dictionary.get(vec[0][0]), " :", vec[0][1])
+    print(dictionary.get(vec[1][0]), " :", vec[1][1])
+    print(dictionary.get(vec[2][0]), " :", vec[2][1])
+index = gensim.similarities.MatrixSimilarity(tfidfModel[corpus])
+sims = index[vec_tfidf]
+sims = sorted(enumerate(sims[0]), key=lambda item: -item[1])
+print(sims[0])
+print(paragraphs[sims[0][0]])
+print(paragraphs[sims[1][0]])
+print(paragraphs[sims[2][0]])
+
 """
 tfidCorpus = tfidModel[BoW]
 TFIDsimModel = createSimilarity(tfidCorpus)
