@@ -8,7 +8,7 @@ import logging
 import heapq
 import numpy
 
-#logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 random.seed(123)
 
 # Removes header and footer
@@ -69,14 +69,14 @@ def removeStopWords(dictionary):
     return dictionary
 
 # Creates Bag of Words
-def createBoW(stemmedTokens):
-    BoW = [dictionary.doc2bow(token) for token in stemmedTokens]
-    return BoW
+def createCorpus(stemmedTokens):
+    corpus = [dictionary.doc2bow(token) for token in stemmedTokens]
+    return corpus
 
-# Create TF-ID- and LSI model and corpus
-def createTFIDmodelsAndCorppus(BoW):
-    tfidModel = gensim.models.TfidfModel(BoW)
-    return tfidModel
+# Create TF-IDF model
+def createTFIDFmodel(corpus):
+    tfidfModel = gensim.models.TfidfModel(corpus)
+    return tfidfModel
 
 # Creates LSI model and corpus
 def createLSImodelsAndCorppus(tfidCorpus, dictionary):
@@ -93,12 +93,11 @@ def preprocess(txt):
     dictionary = removeStopWords(dictionary)
     return stemmedTokens, dictionary, paragraphs
 
-# Creates TFID and LSI models and corpuses
+# Creates TF-IDF and LSI models and corpuses
 def createModels(stemmedTokens, dictionary):
-    BoW = createBoW(stemmedTokens)
-    tfidModel = createTFIDmodelsAndCorppus(BoW)
-    #lsiModel, lsiCorpus = createLSImodelsAndCorppus(tfidCorpus, dictionary)
-    return BoW, tfidModel #lsiModel, lsiCorpus
+    corpus = createCorpus(stemmedTokens)
+    tfidfModel = createTFIDmodel(corpus)
+    return corpus, tfidfModel #lsiModel, lsiCorpus
 
 #Creates similarity models
 def createSimilarity(corpus):
@@ -110,7 +109,30 @@ txt = codecs.open("pg3300.txt", "r", "utf-8").read()
 txt = removeHeadAndFoot(txt)
 
 stemmedTokens, dictionary, paragraphs = preprocess(txt)
-BoW, tfidModel = createModels(stemmedTokens, dictionary)
+corpus = [dictionary.doc2bow(token) for token in stemmedTokens]  # Creates a corpus (represented as a Bag of Words)from the book that can be used to train models
+tfidfModel = gensim.models.TfidfModel(corpus)  # Initialise TF-ID model used for transformation. Takes a BoW representation and transforms it to TF-ID weights
+corpus_tfidf = tfidfModel[corpus]
+lsiModel = gensim.models.LsiModel(corpus_tfidf, id2word=dictionary, num_topics=2)  # initialize an LSI transformation model
+corpus_lsi = lsiModel[corpus_tfidf]
+lsiModel.print_topics(2)
+#for para in corpus_lsi:
+#    print(para)
+
+query = "How taxes influence Economics?"
+queryTokens = tokenize([query])
+queryStemmedTokens = stem(queryTokens)
+vec_bow = [dictionary.doc2bow(token) for token in queryStemmedTokens]
+vec_lsi = lsiModel[vec_bow]
+#for vec in vec_lsi:
+#    print(vec)
+
+index = gensim.similarities.MatrixSimilarity(lsiModel[corpus]) # transform corpus to LSI space and index it
+sims = index[vec_lsi]  # perform a similarity query against the corpus
+sims = sorted(enumerate(sims[0]), key=lambda item: -item[1])  # Sorts sim decending on the similarity scores
+print(sims[0])  # print sorted (document number, similarity score) 2-tuples
+print(sims[1])  # print sorted (document number, similarity score) 2-tuples
+print(sims[2])  # print sorted (document number, similarity score) 2-tuples
+"""
 tfidCorpus = tfidModel[BoW]
 TFIDsimModel = createSimilarity(tfidCorpus)
 
@@ -130,3 +152,4 @@ for para in retrievedParagraphs:
     print("\n")
     print(paragraphs[para[0]])
     print("\n")
+"""
