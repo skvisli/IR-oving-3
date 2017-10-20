@@ -5,6 +5,8 @@ import codecs
 import os
 import string
 import logging
+import heapq
+import numpy
 
 #logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 random.seed(123)
@@ -17,8 +19,12 @@ def removeHeadAndFoot(txt):
 
 def splitIntoParagraphs(txt):
     # Splits mainTxt into paragraphs
+    paragraphs2 = []
     paragraphs = txt.split(2 * os.linesep)
-    return paragraphs
+    for para in paragraphs:
+        if para:
+            paragraphs2.append(para)
+    return paragraphs2
 
 # Tokenizes paragraphs
 def tokenize(paragraphs):
@@ -32,7 +38,7 @@ def tokenize(paragraphs):
     print("Book tokenized")
     return tokens
 
-#Stem tokens
+# Stem tokens
 def stem(tokens):
     stemmer = nltk.stem.PorterStemmer()
     stemmedTokens = []
@@ -45,7 +51,7 @@ def stem(tokens):
     print("Finished stemming")
     return stemmedTokens
 
-# Creating dictionary
+# Creates dictionary
 def createDictionary(stemmedTokens):
     dictionary = gensim.corpora.Dictionary()
     dictionary.add_documents(stemmedTokens)
@@ -68,10 +74,9 @@ def createBoW(stemmedTokens):
     return BoW
 
 # Create TF-ID- and LSI model and corpus
-def createTFIDmodelsAndCorppus(BoW, dictionary):
+def createTFIDmodelsAndCorppus(BoW):
     tfidModel = gensim.models.TfidfModel(BoW)
-    tfidCorpus = tfidModel[BoW]
-    return tfidModel, tfidCorpus
+    return tfidModel
 
 # Creates LSI model and corpus
 def createLSImodelsAndCorppus(tfidCorpus, dictionary):
@@ -79,38 +84,49 @@ def createLSImodelsAndCorppus(tfidCorpus, dictionary):
     lsiCorpus = lsiModel[tfidCorpus]
     return lsiModel, lsiCorpus
 
+# Uses multiple other functions to preprocess a text
 def preprocess(txt):
     paragraphs = splitIntoParagraphs(txt)
     tokens = tokenize(paragraphs)
     stemmedTokens = stem(tokens)
     dictionary = createDictionary(stemmedTokens)
     dictionary = removeStopWords(dictionary)
-    return stemmedTokens, dictionary
+    return stemmedTokens, dictionary, paragraphs
 
+# Creates TFID and LSI models and corpuses
 def createModels(stemmedTokens, dictionary):
     BoW = createBoW(stemmedTokens)
-    tfidModel, tfidCorpus = createTFIDmodelsAndCorppus(BoW, dictionary)
-    lsiModel, lsiCorpus = createTFIDmodelsAndCorppus(tfidCorpus, dictionary)
-    return BoW, tfidModel, tfidCorpus, lsiModel, lsiCorpus
+    tfidModel = createTFIDmodelsAndCorppus(BoW)
+    #lsiModel, lsiCorpus = createLSImodelsAndCorppus(tfidCorpus, dictionary)
+    return BoW, tfidModel #lsiModel, lsiCorpus
 
 #Creates similarity models
-def createSimMOdels(tfidCorpus, lsiCorpus):
-    TFIDsimModel = gensim.similarities.MatrixSimilarity(tfidCorpus)
-    LSIsimModel = gensim.similarities.MatrixSimilarity(lsiCorpus)
-    return TFIDsimModel, LSIsimModel
+def createSimilarity(corpus):
+    similarity = gensim.similarities.MatrixSimilarity(corpus)
+    return similarity
 
 
 txt = codecs.open("pg3300.txt", "r", "utf-8").read()
 txt = removeHeadAndFoot(txt)
 
-stemmedTokens, dictionary = preprocess(txt)
-BoW, tfidModel, tfidCorpus, lsiModel, lsiCorpus = createModels(stemmedTokens, dictionary)
-TFIDsimModel, LSIsimModel = createSimMOdels(tfidCorpus, lsiCorpus)
+stemmedTokens, dictionary, paragraphs = preprocess(txt)
+BoW, tfidModel = createModels(stemmedTokens, dictionary)
+tfidCorpus = tfidModel[BoW]
+TFIDsimModel = createSimilarity(tfidCorpus)
 
 query = "How taxes influence Economics?"
-stemmedTokensQuery, dictionaryQuery = preprocess(query)
-BoWQuery, tfidModelQuery, tfidCorpusQuery, lsiModelQuery, lsiCorpusQuery = createModels(stemmedTokensQuery, dictionaryQuery)
+stemmedTokensQuery, dictionaryQuery, paragraphsQuery = preprocess(query)
+BoWQuery, tfidModelQuery = createModels(stemmedTokensQuery, dictionary)
 
-print(dictionary.get(2826))
-print(lsiCorpusQuery)
-print(BoWQuery)
+queryTFIDvec = tfidModel[BoWQuery]
+
+index = gensim.similarities.MatrixSimilarity(tfidModel[BoW])
+sims = index[queryTFIDvec]
+
+retrievedParagraphs = heapq.nlargest(3, sims[0])
+print(numpy.where(sims))
+
+for para in retrievedParagraphs:
+    print("\n")
+    print(paragraphs[para[0]])
+    print("\n")
